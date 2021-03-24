@@ -13,7 +13,7 @@ rand_image = false; % Se true e se analyze_just_one è true, sceglie
 % randomicamente l'immagine da analizzare.
 % Altrimenti sceglie la unrand_number-esima.
 
-unrand_number = 5;  % Se rand_image è false, seleziona l'immagine.
+unrand_number = 8;  % Se rand_image è false, seleziona l'immagine.
 
 flush_folder=false; % Se true, svuota la cartella result prima
 % di iniziare
@@ -26,7 +26,7 @@ show_resume_choice = false; %considerto solo se show_resume è true; mostra
 
 show_result = false; % se true apre una figura che mostra la zona
 % selezionata
-kernel_amount = 50;
+kernel_amount = 80;
 
 % ---- Parametri per l'analisi
 disk_dim = 5;% Specifica la dimensione da usare per la open della maschera
@@ -167,6 +167,7 @@ for fn=1:to_be_analyzed
     %   - CONT ha meno aree
     %   - a parità di aree, cont ha percentuale di selezione maggiore
     % Se nessuna delle due va bene lanciamo GABOR.
+    
     [topology_corr, selected_ratio_corr] = is_reliable(mask_corr,IMG);
     [topology_cont, selected_ratio_cont] = is_reliable(mask_cont,IMG);
     

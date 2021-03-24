@@ -79,8 +79,12 @@ function [mask, mask_raw, gaborfilter] = gabor_emergency(IMG,filename)
 
         if rotation == 0
             mask1 = mask;
+            mask1_raw = mask_raw;
+            gaborfilter1 = gaborfilter;
         else
             mask2 = mask;
+            mask2_raw = mask_raw;
+            gaborfilter2 = gaborfilter;
         end
     end  
 
@@ -88,16 +92,29 @@ function [mask, mask_raw, gaborfilter] = gabor_emergency(IMG,filename)
 [top_1,rat_1] = is_reliable(mask1(90:end-90,90:end-90),IMG_cut);
 [top_2,rat_2] = is_reliable(mask2(90:end-90,90:end-90),IMG_cut);
 
+
+choice = '2';
 if rat_1 > 10
-    mask = mask2
+    choice = '2';
 elseif rat_2>10
-    mask = mask1
+    choice = '1';
 end
 
 if top_1 < top_2
+    choice = '1';
+else if top_1 > top_2
+    choice = '2';
+end
+
+
+if choice == '1'
     mask = mask1;
+    mask_raw = mask1_raw;
+    gaborfilter = gaborfilter1;
 else
     mask = mask2;
+    mask_raw = mask2_raw;
+    gaborfilter = gaborfilter2;
 end
 
         % Clippiamo al massimo i valori dell'immagine che corrispondono alla
