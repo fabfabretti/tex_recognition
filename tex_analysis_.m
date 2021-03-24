@@ -22,14 +22,14 @@ clc
 %% --- IMPOSTAZIONI
 
 % ---- Scelta dell'input e gestione files
-    analyze_just_one = false; % Se true, analizza una sola immagine; 
+    analyze_just_one = true; % Se true, analizza una sola immagine; 
                              % altrimenti analizza tutta la cartella
 
     rand_image = false; % Se true e se analyze_just_one è true, sceglie 
                         % randomicamente l'immagine da analizzare. 
                         % Altrimenti sceglie la unrand_number-esima.
                         
-    unrand_number = 2;  % Se rand_image è false, seleziona l'immagine.
+    unrand_number = 1;  % Se rand_image è false, seleziona l'immagine.
     
     flush_folder=false; % Se true, svuota la cartella result prima 
                         % di iniziare
@@ -42,6 +42,7 @@ clc
                               
     show_result = false; % se true apre una figura che mostra la zona 
                          % selezionata
+    kernel_amount = 100;
 
 % ---- Parametri per l'analisi
     disk_dim = 5;% Specifica la dimensione da usare per la open della maschera
@@ -95,20 +96,43 @@ for fn=1:to_be_analyzed
      % L'analisi base (xcorr) viene fatta due volte: una usando il kernel 
      % che massimizza CORR e una usando quello che massimizza CONT. Poi si
      % decide quale delle due maschere è più bella.
-    for krn=1:2   
+    for k_a=1:2   
         
-     kernel_dim = kernels(krn);
-     kernel_type = kernel_types(krn);
-     fprintf('A.%d) Kernel %s scelto : %d\n',krn,kernel_type,kernel_dim);
+     kernel_dim = kernels(k_a);
+     kernel_type = kernel_types(k_a);
+     fprintf('A.%d) Kernel %s scelto : %d\n',k_a,kernel_type,kernel_dim);
 
     % ---- Definizione dei 6 kernels (in riga per brevità)
-        pattern1 = IMG(1:kernel_dim,1:kernel_dim);pattern2 = IMG(2:kernel_dim+1,2:kernel_dim+1); pattern3 = IMG(IMG_x-kernel_dim+1:IMG_x,IMG_y-kernel_dim+1:IMG_y);    pattern4 = IMG(IMG_x-kernel_dim:IMG_x-1,IMG_y-kernel_dim:IMG_y-1);pattern5 = IMG(1:kernel_dim,IMG_y-kernel_dim+1:IMG_y);    pattern6 = IMG(2:kernel_dim+1,IMG_y-kernel_dim+1:IMG_y);
+         pattern1 = IMG(1:kernel_dim,1:kernel_dim);%pattern2 = IMG(2:kernel_dim+1,2:kernel_dim+1); pattern3 = IMG(IMG_x-kernel_dim+1:IMG_x,IMG_y-kernel_dim+1:IMG_y);    pattern4 = IMG(IMG_x-kernel_dim:IMG_x-1,IMG_y-kernel_dim:IMG_y-1);pattern5 = IMG(1:kernel_dim,IMG_y-kernel_dim+1:IMG_y);    pattern6 = IMG(2:kernel_dim+1,IMG_y-kernel_dim+1:IMG_y);
 
+         xcorr_full = zeros(size(normxcorr2(pattern1,IMG)));
+         pat_x_max = IMG_x - kernel_dim;
+         pat_y_max = IMG_y - kernel_dim;
+
+         if k_a ==1
+         kern_pos_corr=cell(1,kernel_amount);
+         else
+         kern_pos_cont=cell(1,kernel_amount);
+         end
+     
+        for krn=1:kernel_amount
+        pat_x = randi(pat_x_max);
+        pat_y = randi(pat_y_max);        
+        
+         if k_a ==1
+         kern_pos_corr{krn}=[pat_x, pat_y];
+         else
+         kern_pos_cont{krn}=[pat_x, pat_y];
+         end
+        
+        pat = IMG( pat_x : (pat_x+kernel_dim-1) ,  pat_y : (pat_y+kernel_dim-1) );
+        xcorr_full = xcorr_full + 1/kernel_amount .* normxcorr2(pat,IMG);
+        
     % ---- Calcolo della xcorr. (in riga per brevità)
-        c1 = normxcorr2(pattern1,IMG);    c2 = normxcorr2(pattern2,IMG);    c3 = normxcorr2(pattern3,IMG);c4 = normxcorr2(pattern4,IMG);    c5 = normxcorr2(pattern5,IMG);    c6 = normxcorr2(pattern6,IMG);
+%         c1 = normxcorr2(pattern1,IMG);    c2 = normxcorr2(pattern2,IMG);    c3 = normxcorr2(pattern3,IMG);c4 = normxcorr2(pattern4,IMG);    c5 = normxcorr2(pattern5,IMG);    c6 = normxcorr2(pattern6,IMG);
+%         xcorr_full = (c1+c2+c3+c4+c5+c6)/6; % calcolo media 
 
-        xcorr_full = (c1+c2+c3+c4+c5+c6)/6; % calcolo media 
-
+        end
         % Tagliamo la xcorr alla dimensione corretta
         xcorr = xcorr_full(kernel_dim-1:end-kernel_dim+1,kernel_dim-1:end-kernel_dim+1); % size(pattern)-1 
         xcorr = abs(xcorr);
@@ -128,7 +152,7 @@ for fn=1:to_be_analyzed
         
         
         %Salviamo la maschera finale (nel tipo corretto)
-        if krn==1
+        if k_a==1
             mask_corr = mask;
         else
             mask_cont = mask;
@@ -147,18 +171,22 @@ for fn=1:to_be_analyzed
     [topology_cont, selected_ratio_cont] = is_reliable(mask_cont,IMG);
 
     mask = mask_corr;
+    kern_pos = kern_pos_corr;
 
     if selected_ratio_corr == 0 && selected_ratio_cont <= 0.1
         mask= mask_cont;
         kernel_type = 'CONT';
+        kern_pos = kern_pos_cont;
         fprintf("B) Switching to CONT because CORR mask was empty\n");
     elseif topology_cont < topology_corr
         mask = mask_cont;
         kernel_type = 'CONT';
+        kern_pos = kern_pos_cont;
         fprintf("B) Switching to CONT because of bad topology\n");
     elseif topology_cont == topology_corr && selected_ratio_cont > selected_ratio_corr
         mask = mask_cont;
         kernel_type = 'CONT';
+        kern_pos = kern_pos_cont;
         fprintf("B) Switching to CONT because of same topology + better selection ratio.\n");
     else
         fprintf("B) CORR map seems optimal.\n");
@@ -207,14 +235,23 @@ if show_resume == true
         if kernel_type == "GABOR"
             title('Immagine originale');
         else
-            title('Patterns prelevati');
-            rectangle('position',[1,1,kernel_dim,kernel_dim],'EdgeColor','r'); % pattern1
-            rectangle('position',[2,2,kernel_dim,kernel_dim],'EdgeColor','g'); % pattern2
-            rectangle('position',[IMG_x-kernel_dim+1,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','b'); %pattern3
-            rectangle('position',[IMG_x-kernel_dim,IMG_y-kernel_dim,kernel_dim,kernel_dim],'EdgeColor','c'); %pattern4
-            rectangle('position',[1,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','m'); %pattern5
-            rectangle('position',[2,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','k'); %pattern6
-            hold off
+            title('Img originale');
+            
+            for krn=1:kernel_amount
+                position = kern_pos{krn};
+                pat_x = position(1);
+                pat_y = position(2);
+                rectangle('position',[pat_x,pat_y,kernel_dim,kernel_dim],'EdgeColor','r');
+            end
+              hold off       
+            
+%             rectangle('position',[1,1,kernel_dim,kernel_dim],'EdgeColor','r'); % pattern1
+%             rectangle('position',[2,2,kernel_dim,kernel_dim],'EdgeColor','g'); % pattern2
+%             rectangle('position',[IMG_x-kernel_dim+1,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','b'); %pattern3
+%             rectangle('position',[IMG_x-kernel_dim,IMG_y-kernel_dim,kernel_dim,kernel_dim],'EdgeColor','c'); %pattern4
+%             rectangle('position',[1,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','m'); %pattern5
+%             rectangle('position',[2,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','k'); %pattern6
+
         end
     
     if show_resume_choice == false
@@ -261,7 +298,7 @@ if show_resume == true
       
         
     % Salvataggio
-    resname =sprintf('results\\%s ',filename);
+    resname =sprintf('results\\%sb',filename);
     saveas(gcf, resname,'png');
     
     if analyze_just_one == false
@@ -283,10 +320,10 @@ if show_resume == true
     title('Maschera');
     
    
-   sgtitle(sprintf('Risultato immagine %s\n\nT = %.3f\n%.1f%% selected\nTipo di analisi: %s',...
+   sgtitle(sprintf('Risultato immagine %sb\n\nT = %.3f\n%.1f%% selected\nTipo di analisi: %s',...
        filename,T,selected_pixels_ratio,kernel_type));
   
-    saveas(gcf, sprintf('results\\%s',filename),'png');
+    saveas(gcf, sprintf('results\\%sb',filename),'png');
     
     if analyze_just_one == false
         close(f);
@@ -295,3 +332,6 @@ if show_resume == true
    
 
 end
+
+
+
