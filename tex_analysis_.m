@@ -1,24 +1,8 @@
 clear 
 close all
 clc
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% @ CESARE!! 
-% Relazione: 
-%    [TODO: PRENDERE PIù KERNEL VARIEGATI + MEDIA]
-%   comunque già così riconosce 34 immagini (ho migliorato alcune cose) ^-^
-%  
-    %  RELAZIONE:
-    %  https://docs.google.com/document/d/1oUnQE5UUykekRmstjFRi4RPNVbs6H3F_cKcTdAV1ZF0/edit?usp=sharing
-%
-%   Per mantenere questo script (dato che già va e abbiamo poco tempo)
-%   potremmo anche usare 1 sola dimensione kernel (aka quella che torna da
-%   find_pattern_size), limitarci a prendere N volte quella lì e fare
-%   media/somme/moltiplicazioni
-%   In particolare, se facciamo questa cosa dentro al for krn=1:2 (linea
-%   84), si fa la media usando una volta dim=CONT e una volta dim=CORR e si
-%   generano due mappe separate. A quel punto il controllo finale decide 
-%   quale usare (o se usare GABOR).
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 %% --- IMPOSTAZIONI
 
 % ---- Scelta dell'input e gestione files
@@ -102,49 +86,53 @@ for fn=1:to_be_analyzed
      kernel_type = kernel_types(k_a);
      fprintf('A.%d) Kernel %s scelto : %d\n',k_a,kernel_type,kernel_dim);
 
-    % ---- Definizione dei 6 kernels (in riga per brevità)
-         pattern1 = IMG(1:kernel_dim,1:kernel_dim);%pattern2 = IMG(2:kernel_dim+1,2:kernel_dim+1); pattern3 = IMG(IMG_x-kernel_dim+1:IMG_x,IMG_y-kernel_dim+1:IMG_y);    pattern4 = IMG(IMG_x-kernel_dim:IMG_x-1,IMG_y-kernel_dim:IMG_y-1);pattern5 = IMG(1:kernel_dim,IMG_y-kernel_dim+1:IMG_y);    pattern6 = IMG(2:kernel_dim+1,IMG_y-kernel_dim+1:IMG_y);
-
-         xcorr_full = zeros(size(normxcorr2(pattern1,IMG)));
+    % ---- Genero la xcorr "di base" dove farò la media di tutte le altre        
+         xcorr_full = zeros(IMG_x + kernel_dim-1, IMG_y + kernel_dim-1);
+         
+         % Zona massima considerabile (non voglio pescare kernel fuori
+         % dalla zona)
          pat_x_max = IMG_x - kernel_dim;
          pat_y_max = IMG_y - kernel_dim;
 
+         % genero il posto dove salverò le posizioni dei kernel
          if k_a ==1
-         kern_pos_corr=cell(1,kernel_amount);
+             kern_pos_corr=cell(1,kernel_amount);
          else
-         kern_pos_cont=cell(1,kernel_amount);
+             kern_pos_cont=cell(1,kernel_amount);
          end
      
         for krn=1:kernel_amount
-        
+            % Estraiamo a sorte le posizioni del pattern. Consideriamo
+            % solamente posizioni che si trovano negli angolini
+            % dell'immagine, perché spesso e volentieri il difetto è in
+            % mezzo
+          
+            while true
+            pat_x = randi(pat_x_max);
+                if pat_x < IMG_x/4 || pat_x > (IMG_x - IMG_x/4)
+                   break; 
+                end
+            end
+            while true
+            pat_y = randi(pat_y_max);
+                if pat_y < IMG_y/4 || pat_y > (IMG_y - IMG_y/4)
+                   break; 
+                end
+            end
+
+            %Salviamo le coordinate estratte nelle celle rispettive
+             if k_a ==1
+                  kern_pos_corr{krn}=[pat_x, pat_y];
+             else
+                kern_pos_cont{krn}=[pat_x, pat_y];
+             end
+             
+            % Estraiamo il pattern (nella posizione estratta) dall'immagine
+            pat = IMG( pat_x : (pat_x+kernel_dim-1) ,  pat_y : (pat_y+kernel_dim-1) );
             
-        % Estraiamo a sorte le posizioni del pattern
-        while true
-        pat_x = randi(pat_x_max);
-            if pat_x < IMG_x/4 || pat_x > (IMG_x - IMG_x/4)
-               break; 
-            end
+            % Aggiungiamo la crosscorrelazione attuale alla media
+            xcorr_full = xcorr_full + 1/kernel_amount .* normxcorr2(pat,IMG);
         end
-        
-        while true
-        pat_y = randi(pat_y_max);
-            if pat_y < IMG_y/4 || pat_y > (IMG_y - IMG_y/4)
-               break; 
-            end
-        end
-        
-        
-         if k_a ==1
-         kern_pos_corr{krn}=[pat_x, pat_y];
-         else
-         kern_pos_cont{krn}=[pat_x, pat_y];
-         end
-        
-        pat = IMG( pat_x : (pat_x+kernel_dim-1) ,  pat_y : (pat_y+kernel_dim-1) );
-        xcorr_full = xcorr_full + 1/kernel_amount .* normxcorr2(pat,IMG);
-       
-        end
-        
         
         % Tagliamo la xcorr alla dimensione corretta
         xcorr = xcorr_full(kernel_dim-1:end-kernel_dim+1,kernel_dim-1:end-kernel_dim+1); % size(pattern)-1 
@@ -179,7 +167,6 @@ for fn=1:to_be_analyzed
     %   - CONT ha meno aree
     %   - a parità di aree, cont ha percentuale di selezione maggiore
     % Se nessuna delle due va bene lanciamo GABOR.
-    
     [topology_corr, selected_ratio_corr] = is_reliable(mask_corr,IMG);
     [topology_cont, selected_ratio_cont] = is_reliable(mask_cont,IMG);
 
@@ -257,14 +244,6 @@ if show_resume == true
                 rectangle('position',[pat_x,pat_y,kernel_dim,kernel_dim],'EdgeColor','r');
             end
               hold off       
-            
-%             rectangle('position',[1,1,kernel_dim,kernel_dim],'EdgeColor','r'); % pattern1
-%             rectangle('position',[2,2,kernel_dim,kernel_dim],'EdgeColor','g'); % pattern2
-%             rectangle('position',[IMG_x-kernel_dim+1,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','b'); %pattern3
-%             rectangle('position',[IMG_x-kernel_dim,IMG_y-kernel_dim,kernel_dim,kernel_dim],'EdgeColor','c'); %pattern4
-%             rectangle('position',[1,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','m'); %pattern5
-%             rectangle('position',[2,IMG_y-kernel_dim+1,kernel_dim,kernel_dim],'EdgeColor','k'); %pattern6
-
         end
     
     if show_resume_choice == false
