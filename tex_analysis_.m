@@ -29,7 +29,7 @@ clc
                         % randomicamente l'immagine da analizzare. 
                         % Altrimenti sceglie la unrand_number-esima.
                         
-    unrand_number = 1;  % Se rand_image è false, seleziona l'immagine.
+    unrand_number = 5;  % Se rand_image è false, seleziona l'immagine.
     
     flush_folder=false; % Se true, svuota la cartella result prima 
                         % di iniziare
@@ -42,7 +42,7 @@ clc
                               
     show_result = false; % se true apre una figura che mostra la zona 
                          % selezionata
-    kernel_amount = 100;
+    kernel_amount = 50;
 
 % ---- Parametri per l'analisi
     disk_dim = 5;% Specifica la dimensione da usare per la open della maschera
@@ -116,8 +116,23 @@ for fn=1:to_be_analyzed
          end
      
         for krn=1:kernel_amount
+        
+            
+        % Estraiamo a sorte le posizioni del pattern
+        while true
         pat_x = randi(pat_x_max);
-        pat_y = randi(pat_y_max);        
+            if pat_x < IMG_x/4 || pat_x > (IMG_x - IMG_x/4)
+               break; 
+            end
+        end
+        
+        while true
+        pat_y = randi(pat_y_max);
+            if pat_y < IMG_y/4 || pat_y > (IMG_y - IMG_y/4)
+               break; 
+            end
+        end
+        
         
          if k_a ==1
          kern_pos_corr{krn}=[pat_x, pat_y];
@@ -127,19 +142,17 @@ for fn=1:to_be_analyzed
         
         pat = IMG( pat_x : (pat_x+kernel_dim-1) ,  pat_y : (pat_y+kernel_dim-1) );
         xcorr_full = xcorr_full + 1/kernel_amount .* normxcorr2(pat,IMG);
-        
-    % ---- Calcolo della xcorr. (in riga per brevità)
-%         c1 = normxcorr2(pattern1,IMG);    c2 = normxcorr2(pattern2,IMG);    c3 = normxcorr2(pattern3,IMG);c4 = normxcorr2(pattern4,IMG);    c5 = normxcorr2(pattern5,IMG);    c6 = normxcorr2(pattern6,IMG);
-%         xcorr_full = (c1+c2+c3+c4+c5+c6)/6; % calcolo media 
-
+       
         end
+        
+        
         % Tagliamo la xcorr alla dimensione corretta
         xcorr = xcorr_full(kernel_dim-1:end-kernel_dim+1,kernel_dim-1:end-kernel_dim+1); % size(pattern)-1 
         xcorr = abs(xcorr);
         xcorr = imgaussfilt(xcorr,1);
 
     % ---- Calcoliamo la treshold ideale con Otsu 
-           T = graythresh(xcorr);
+           T = graythresh(xcorr(30:end-30, 30:end-30));
 
     % ---- Generiamo la maschera
         mask_raw = xcorr<T;
