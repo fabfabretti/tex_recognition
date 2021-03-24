@@ -6,7 +6,7 @@ clc
 %% --- IMPOSTAZIONI
 
 % ---- Scelta dell'input e gestione files
-analyze_just_one = true; % Se true, analizza una sola immagine;
+analyze_just_one = false; % Se true, analizza una sola immagine;
 % altrimenti analizza tutta la cartella
 
 rand_image = false; % Se true e se analyze_just_one è true, sceglie
@@ -26,7 +26,7 @@ show_resume_choice = false; %considerto solo se show_resume è true; mostra
 
 show_result = false; % se true apre una figura che mostra la zona
 % selezionata
-kernel_amount = 80;
+kernel_amount = 50;
 
 % ---- Parametri per l'analisi
 disk_dim = 5;% Specifica la dimensione da usare per la open della maschera
@@ -70,7 +70,7 @@ for fn=1:to_be_analyzed
     %% - Analisi
     
     % --- Ricerca dimensione ottimale dei kernels
-    
+
     % Salva le due pattern size ideali trovate dalla funzione apposita,
     % per provarle in sequenza.
     [kernel_corr, kernel_cont]  = find_pattern_size(IMG);
@@ -137,10 +137,12 @@ for fn=1:to_be_analyzed
         % Tagliamo la xcorr alla dimensione corretta
         xcorr = xcorr_full(kernel_dim-1:end-kernel_dim+1,kernel_dim-1:end-kernel_dim+1); % size(pattern)-1
         xcorr = abs(xcorr);
-        xcorr = imgaussfilt(xcorr,1);
+        xcorr = imgaussfilt(xcorr,2);
+        imagesc(xcorr);
+        pause(.5)
         
         % ---- Calcoliamo la treshold ideale con Otsu
-        T = graythresh(xcorr(30:end-30, 30:end-30));
+        T = graythresh(xcorr(30:end-30, 30:end-30))*.9;
         
         % ---- Generiamo la maschera
         mask_raw = xcorr<T;
@@ -154,12 +156,24 @@ for fn=1:to_be_analyzed
         
         %Salviamo la maschera finale (nel tipo corretto)
         if k_a==1
+            xcorr_corr = xcorr;
             mask_corr = mask;
+            mask_raw_corr = mask_raw;
         else
+            xcorr_cont = xcorr;
             mask_cont = mask;
-        end
-        
+            mask_raw_cont = mask_raw;
+        end        
     end
+    
+    
+        figure();
+        subplot(231);        imagesc(xcorr_corr);        title("xcorr corr");
+        subplot(232);        imshow(mask_raw_corr);        title("mask corr");
+        subplot(233);        imshow(mask_corr);        title("mask corr");
+        subplot(234);        imagesc(xcorr_cont);        title("xcorr cont");
+        subplot(235);        imshow(mask_raw_cont);        title("mask cont");
+        subplot(236);        imshow(mask_cont);        title("mask cont");
     
     % ---- Scelta della maschera migliore:
     % Di default prendo CORR.
@@ -170,32 +184,41 @@ for fn=1:to_be_analyzed
     
     [topology_corr, selected_ratio_corr] = is_reliable(mask_corr,IMG);
     [topology_cont, selected_ratio_cont] = is_reliable(mask_cont,IMG);
+    fprintf("[Corr: %d, %.1f%%\tCont: %d, %.1f%%]\n",...
+        topology_corr, selected_ratio_corr,topology_cont, selected_ratio_cont);
     
-    mask = mask_corr;
-    kern_pos = kern_pos_corr;
-    
-    if selected_ratio_corr == 0 && selected_ratio_cont <= 0.1
-        mask= mask_cont;
-        kernel_type = 'CONT';
-        kern_pos = kern_pos_cont;
+    choice = "corr";    
+    if selected_ratio_corr <= 0.3 
+        choice = "cont";
         fprintf("B) Switching to CONT because CORR mask was empty\n");
     elseif topology_cont < topology_corr
-        mask = mask_cont;
-        kernel_type = 'CONT';
-        kern_pos = kern_pos_cont;
+        choice = "cont";
         fprintf("B) Switching to CONT because of bad topology\n");
     elseif topology_cont == topology_corr && selected_ratio_cont > selected_ratio_corr
-        mask = mask_cont;
-        kernel_type = 'CONT';
-        kern_pos = kern_pos_cont;
+        choice = "cont";
         fprintf("B) Switching to CONT because of same topology + better selection ratio.\n");
     else
         fprintf("B) CORR map seems optimal.\n");
-        kernel_type = 'CORR';
-        kernel_dim = kernel_corr;
     end
     
-    if selected_ratio_cont <= 0.1
+    if choice == "corr"
+        xcorr = xcorr_corr;
+        kernel_dim = kernel_corr;
+        mask_raw = mask_raw_corr;
+        mask= mask_corr;
+        kernel_type = 'CORR';
+        kern_pos = kern_pos_corr;
+    else
+        xcorr = xcorr_cont;
+        kernel_dim = kernel_cont;
+        mask_raw = mask_raw_cont;
+        mask= mask_cont;
+        kernel_type = 'CONT';
+        kern_pos = kern_pos_cont;
+    end
+    
+    
+    if selected_ratio_cont <= 0.3
         kernel_type = 'GABOR';
         fprintf("B.2) Both masks are empty; switching to GABOR. Potrebbe volerci qualche secondo.. >>\n");
         [mask, mask_raw, xcorr] = gabor_emergency(IMG,filename);
