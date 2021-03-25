@@ -1,2 +1,0 @@
-https://github.com/msminhas93/FabricDefect/tree/master/FabricDataset/Images
-http://www.aitex.es/afid (paper)
