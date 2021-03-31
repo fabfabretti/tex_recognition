@@ -25,12 +25,12 @@
     
 %% S E T T I N G S
     analyze_just_one = true; 
-    rand_image = true;
-    unrand_number = 1;
+    rand_image = false;
+    unrand_number = 0;
     files = dir('defect_images\*.jpg');
     disk_dim = 5;
     
-    smpl = 28; %Fino a che dimensione di kernel computo
+    smpl = 50; %Fino a che dimensione di kernel computo
     
 %% R U N
 %% part 1: plot valori di corr&cont

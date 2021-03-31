@@ -12,7 +12,7 @@ clc
                         % randomicamente l'immagine da analizzare. 
                         % Altrimenti sceglie la unrand_number-esima.
                         
-    unrand_number = 2;  % Se rand_image è false, seleziona l'immagine.
+    unrand_number = 90;  % Se rand_image è false, seleziona l'immagine.
     
     flush_folder=false; % Se true, svuota la cartella result prima 
                         % di iniziare
